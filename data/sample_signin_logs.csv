@@ -1,0 +1,16 @@
+TimeGenerated,UserPrincipalName,IPAddress,ResultType,AppDisplayName,Location,CorrelationId
+2026-11-03T08:01:12Z,john@contoso.example,203.0.113.45,50126,Microsoft 365,Unknown,evt-001
+2026-11-03T08:01:44Z,john@contoso.example,203.0.113.45,50126,Microsoft 365,Unknown,evt-002
+2026-11-03T08:02:13Z,john@contoso.example,203.0.113.45,50126,Microsoft 365,Unknown,evt-003
+2026-11-03T08:02:52Z,john@contoso.example,203.0.113.45,50126,Microsoft 365,Unknown,evt-004
+2026-11-03T08:03:11Z,john@contoso.example,203.0.113.45,50126,Microsoft 365,Unknown,evt-005
+2026-11-03T08:03:44Z,admin@contoso.example,203.0.113.45,50126,Azure Portal,Unknown,evt-006
+2026-11-03T08:04:15Z,admin@contoso.example,203.0.113.45,50126,Azure Portal,Unknown,evt-007
+2026-11-03T08:05:01Z,admin@contoso.example,203.0.113.45,50126,Azure Portal,Unknown,evt-008
+2026-11-03T08:07:33Z,admin@contoso.example,203.0.113.45,0,Azure Portal,Unknown,evt-009
+2026-11-03T09:05:00Z,sarah@contoso.example,198.51.100.22,50126,Microsoft 365,United States,evt-010
+2026-11-03T09:05:22Z,sarah@contoso.example,198.51.100.22,0,Microsoft 365,United States,evt-011
+2026-11-03T09:40:09Z,mike@contoso.example,192.0.2.18,0,Microsoft 365,United States,evt-012
+2026-11-03T10:11:20Z,service-account@contoso.example,192.0.2.70,0,Internal App,United States,evt-013
+2026-11-03T11:21:45Z,john@contoso.example,192.0.2.25,0,Microsoft 365,United States,evt-014
+2026-11-03T13:12:07Z,admin@contoso.example,203.0.113.45,50126,Azure Portal,Unknown,evt-015
