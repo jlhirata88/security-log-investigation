@@ -1,0 +1,103 @@
+# KQL investigations — Microsoft Entra sign-ins
+
+These queries are examples designed for **Microsoft Sentinel / Log Analytics** workspaces with a connected **SigninLogs** table. They have **not** been executed in a live Sentinel environment. The sample data in `data/sample_signin_logs.csv` is synthetic and is **not automatically loaded** into SigninLogs.
+
+The CSV has Entra-style column names, but is only a training dataset. In production, schema and event availability depend on the connector and permissions. For reproducibility, these examples use a fixed November 3, 2026 UTC investigation window. Change the time window when querying real records.
+
+## Query 1 — Review failed sign-ins by user and source IP
+
+```kql
+SigninLogs
+| where TimeGenerated >= datetime(2026-11-03T00:00:00Z)
+    and TimeGenerated < datetime(2026-11-04T00:00:00Z)
+| where ResultType != "0"
+| summarize FailedAttempts = count() by UserPrincipalName, IPAddress
+| sort by FailedAttempts desc
+```
+
+**Purpose:** Find accounts and IP addresses producing the most failed logins.
+
+**Expected pattern in the synthetic CSV:** `john@contoso.example` has five failures from `203.0.113.45`; `admin@contoso.example` has four from the same IP; `sarah@contoso.example` has one from `198.51.100.22`. These are *manually derived expectations*, not live query results.
+
+## Query 2 — Identify IP addresses targeting multiple users
+
+```kql
+SigninLogs
+| where TimeGenerated >= datetime(2026-11-03T00:00:00Z)
+    and TimeGenerated < datetime(2026-11-04T00:00:00Z)
+| where ResultType != "0"
+| summarize FailedAttempts = count(),
+            TargetedUsers = dcount(UserPrincipalName),
+            Users = make_set(UserPrincipalName, 20)
+    by IPAddress
+| where TargetedUsers >= 2
+| sort by FailedAttempts desc
+```
+
+**Purpose:** Flag IP addresses with failed sign-ins against multiple accounts. This can be consistent with password spraying but is **not proof** of an attack.
+
+**Expected pattern in the synthetic CSV:** `203.0.113.45` attempted both John and Admin and generated nine failures.
+
+## Query 3 — Look for success after earlier failures from the same account and IP
+
+```kql
+let StartTime = datetime(2026-11-03T00:00:00Z);
+let EndTime = datetime(2026-11-04T00:00:00Z);
+let Events =
+    SigninLogs
+    | where TimeGenerated >= StartTime and TimeGenerated < EndTime
+    | project TimeGenerated, UserPrincipalName, IPAddress, ResultType;
+let Failures =
+    Events
+    | where ResultType != "0"
+    | summarize FailedAttempts = count(),
+                FirstFailure = min(TimeGenerated),
+                LastFailure = max(TimeGenerated)
+        by UserPrincipalName, IPAddress;
+let Successes =
+    Events
+    | where ResultType == "0"
+    | summarize FirstSuccess = min(TimeGenerated)
+        by UserPrincipalName, IPAddress;
+Failures
+| join kind=inner Successes on UserPrincipalName, IPAddress
+| where FirstSuccess > LastFailure
+| project UserPrincipalName, IPAddress, FailedAttempts,
+          FirstFailure, LastFailure, FirstSuccess
+| sort by FailedAttempts desc
+```
+
+**Purpose:** Surface accounts where a successful sign-in followed previous failures from the *same* source IP. This is a lead for investigation, not confirmation of compromise.
+
+**Expected pattern in the synthetic CSV:** Admin had three failed attempts before a successful login from `203.0.113.45`. Sarah had one failed attempt before success from `198.51.100.22`. The fourth Admin failure occurred *after* the success, so the simple pattern above will not show Admin; that limitation matters. To investigate the full sequence, use Query 4.
+
+## Query 4 — Inspect the detailed timeline for an account and IP
+
+```kql
+SigninLogs
+| where TimeGenerated >= datetime(2026-11-03T00:00:00Z)
+    and TimeGenerated < datetime(2026-11-04T00:00:00Z)
+| where UserPrincipalName == "admin@contoso.example"
+    and IPAddress == "203.0.113.45"
+| project TimeGenerated, UserPrincipalName, IPAddress,
+          ResultType, AppDisplayName, Location
+| sort by TimeGenerated asc
+```
+
+**Purpose:** Inspect individual events and their ordering. On the synthetic data, the Admin account has three failures, one success, then another failure later in the day.
+
+## Analyst follow-up
+
+Check whether the sign-in was expected, review MFA and conditional-access results (where available), compare device and geographic context, and escalate suspicious activity according to team procedures. A failed sign-in is not itself proof of malicious activity; a successful sign-in after failures is not automatically a compromise.
+
+## Learning notes
+
+- `where`: filter results (dates, failures, users).
+- `summarize`: group and count events.
+- `dcount()`: count distinct accounts targeted.
+- `make_set()`: collect unique account names.
+- `join`: connect related event summaries.
+- `project`: display only important columns.
+- `sort by`: order results.
+
+**Synthetic data notice:** Addresses from `192.0.2.0/24`, `198.51.100.0/24` and `203.0.113.0/24` are documentation-only example IP ranges, not real attacker addresses.
