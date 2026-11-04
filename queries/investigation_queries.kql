@@ -61,7 +61,7 @@ let Successes =
         by UserPrincipalName, IPAddress;
 Failures
 | join kind=inner Successes on UserPrincipalName, IPAddress
-| where FirstSuccess > LastFailure
+| where FirstSuccess > FirstFailure
 | project UserPrincipalName, IPAddress, FailedAttempts,
           FirstFailure, LastFailure, FirstSuccess
 | sort by FailedAttempts desc
@@ -69,7 +69,7 @@ Failures
 
 **Purpose:** Surface accounts where a successful sign-in followed previous failures from the *same* source IP. This is a lead for investigation, not confirmation of compromise.
 
-**Expected pattern in the synthetic CSV:** Admin had three failed attempts before a successful login from `203.0.113.45`. Sarah had one failed attempt before success from `198.51.100.22`. The fourth Admin failure occurred *after* the success, so the simple pattern above will not show Admin; that limitation matters. To investigate the full sequence, use Query 4.
+**Expected pattern in the synthetic CSV:** Admin had three failed attempts before a successful login from `203.0.113.45`; Sarah had one failed attempt before success from `198.51.100.22`. Because this query groups failures across the whole day, its `FailedAttempts` total includes failures that may occur *after* the first success (such as Admin’s fourth failure). The `FirstFailure < FirstSuccess` condition flags candidates but does **not** establish that every failure preceded success. To inspect the full sequence, use Query 4.
 
 ## Query 4 — Inspect the detailed timeline for an account and IP
 
